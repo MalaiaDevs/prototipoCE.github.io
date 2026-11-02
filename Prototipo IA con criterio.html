@@ -1,0 +1,391 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Prototipo IA con criterio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una sola columna tipo app, pestañas arriba, un panel por herramienta (Peaje mental, Casino, Progreso). */
+:root{
+  --bg:#F5F7F4; --fg:#10222B; --muted:#3E5159; --card:#FFFFFF; --line:#C9D5D1;
+  --accent:#0F7B5F; --accent-ink:#FFFFFF; --soft:#DDEEE6;
+  --amber:#F2B134; --amber-ink:#10222B; --bad:#B23A22; --bad-soft:#F7E1DB;
+  --pet:#7FD1B0; --pet-sick:#A9B7B2;
+  --font-display:'Bricolage Grotesque',Arial,sans-serif;
+  --font-body:'Public Sans',Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1A21; --fg:#E7EFEB; --muted:#A9C0B8; --card:#15262F; --line:#2A4049;
+    --accent:#3FC796; --accent-ink:#06221A; --soft:#173A30;
+    --amber:#F2B134; --amber-ink:#10222B; --bad:#FF9C84; --bad-soft:#3A2019;
+    --pet:#5FBF9D; --pet-sick:#6F827C; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1A21; --fg:#E7EFEB; --muted:#A9C0B8; --card:#15262F; --line:#2A4049;
+  --accent:#3FC796; --accent-ink:#06221A; --soft:#173A30;
+  --amber:#F2B134; --amber-ink:#10222B; --bad:#FF9C84; --bad-soft:#3A2019;
+  --pet:#5FBF9D; --pet-sick:#6F827C; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:17px;line-height:1.5;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:clamp(34px,7vw,48px);font-weight:800}
+h2{font-size:26px;font-weight:700}
+h3{font-size:19px;font-weight:700}
+p{margin:0}
+.kicker{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+.banner{background:var(--soft);border-radius:8px;padding:10px 14px;font-size:15px}
+.tabs{display:flex;gap:6px;border-bottom:2px solid var(--line);flex-wrap:wrap}
+.tab{font:inherit;font-weight:600;font-size:16px;background:none;color:var(--muted);border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer;min-height:44px;margin-bottom:-2px}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--fg)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.panel{display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.chatbox{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg);display:flex;flex-direction:column;gap:4px}
+.label{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+textarea{font:inherit;width:100%;min-height:120px;resize:vertical;border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg);color:var(--fg)}
+.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:12px 18px;min-height:46px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.alt{background:transparent;color:var(--fg);border:1.5px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border-radius:999px;padding:5px 12px;font-size:15px;font-weight:600;border:1.5px solid var(--line)}
+.chip.ok{background:var(--soft);border-color:var(--accent);color:var(--fg)}
+.chip.miss{background:var(--bad-soft);border-color:var(--bad);color:var(--fg)}
+.quote{background:var(--bg);border-left:4px solid var(--line);padding:8px 12px;border-radius:4px;white-space:pre-wrap}
+.stat{font-family:var(--font-display);font-size:34px;font-weight:800;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
+.stakes{display:flex;gap:8px;flex-wrap:wrap}
+.stakes label{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:44px;font-weight:600}
+.stakes input:checked + span{color:var(--accent)}
+.stakes label:has(input:checked){border-color:var(--accent);background:var(--soft)}
+.stakes label:has(input:disabled){opacity:.4;cursor:not-allowed}
+.result{border-radius:8px;padding:12px 14px}
+.result.good{background:var(--soft);border:1.5px solid var(--accent)}
+.result.bad{background:var(--bad-soft);border:1.5px solid var(--bad)}
+.bar{height:14px;background:var(--line);border-radius:999px;overflow:hidden}
+.bar > i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);min-height:44px}
+.check:last-child{border-bottom:0}
+.check input{width:22px;height:22px;margin-top:2px;accent-color:var(--accent);flex:none}
+.pet{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.legend{font-size:14px}
+@media (prefers-reduced-motion:reduce){.bar > i{transition:none}}
+.hero{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.hero > div{flex:1;min-width:230px;display:flex;flex-direction:column;gap:8px}
+.flow{display:flex;gap:4px;align-items:flex-start;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 10px}
+.flow .st{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:14px;font-weight:600;line-height:1.25}
+.flow .ar{flex:none;align-self:center;width:30px}
+.flow svg{max-width:100%;height:auto}
+.tab{display:flex;align-items:center;gap:8px}
+.tab svg{width:24px;height:24px}
+.ring{position:relative;width:120px;height:120px;flex:none}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:28px}
+.result{display:flex;gap:12px;align-items:center}
+.result svg{width:40px;height:40px}
+.stack{display:flex;gap:3px;flex-wrap:wrap;min-height:22px}
+.week{display:flex;align-items:flex-end;gap:8px;height:110px;border-bottom:2px solid var(--line)}
+.week div{flex:1;background:var(--soft);border-radius:6px 6px 0 0;min-height:6px}
+.week div.today{background:var(--accent);transition:height .4s}
+.weeklab{display:flex;gap:8px}.weeklab span{flex:1;text-align:center;font-size:13px;color:var(--muted)}
+[hidden]{display:none!important}
+</style>
+
+<div class="wrap">
+  <header class="hero"><div>
+    <p class="kicker">Prototipo · Iniciativa y Cultura Empresarial</p>
+    <h1>IA con criterio</h1>
+    <p class="muted">Tres herramientas para usar la IA y pensar mejor, no para pensar menos.</p>
+    <p class="banner">Es un prototipo navegable. Las respuestas de la IA están escritas de antemano y los datos son de ejemplo.</p>
+  </div><svg aria-label="Neurogotchi sano" role="img" width="150" height="150" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><ellipse cx="60" cy="70" rx="42" ry="38" style="fill:var(--pet);stroke:var(--fg);stroke-width:3.5"/><ellipse cx="44" cy="108" rx="11" ry="6" style="fill:var(--fg)"/><ellipse cx="76" cy="108" rx="11" ry="6" style="fill:var(--fg)"/><path d="M60 32 Q58 18 44 14" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 32 Q64 18 80 16" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44" cy="14" r="5" style="fill:var(--accent);stroke:var(--fg);stroke-width:2.5"/><circle cx="80" cy="16" r="5" style="fill:var(--accent);stroke:var(--fg);stroke-width:2.5"/><circle cx="46" cy="66" r="6.5" style="fill:var(--fg)"/><circle cx="74" cy="66" r="6.5" style="fill:var(--fg)"/><circle cx="48" cy="64" r="2" style="fill:var(--card)"/><circle cx="76" cy="64" r="2" style="fill:var(--card)"/><path d="M46 82 Q60 96 74 82" style="fill:none;stroke:var(--fg);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="80" r="6" style="fill:#D9573B" opacity="0.35"/><circle cx="86" cy="80" r="6" style="fill:#D9573B" opacity="0.35"/></svg></header>
+
+  <div class="tabs" role="tablist" aria-label="Herramientas">
+    <button class="tab" role="tab" id="t-peaje" aria-controls="peaje" aria-selected="true" data-tab="peaje"><svg aria-label="Peaje mental: una barrera que pide pensar primero" role="img" width="24" height="24" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><rect x="8" y="106" width="104" height="4" rx="0" style="fill:var(--fg)"/><rect x="10" y="56" width="34" height="50" rx="3" style="fill:var(--accent);stroke:var(--fg);stroke-width:3"/><rect x="6" y="46" width="42" height="11" rx="2" style="fill:var(--fg);stroke:var(--fg);stroke-width:3"/><rect x="17" y="66" width="20" height="18" rx="2" style="fill:var(--soft);stroke:var(--fg);stroke-width:2"/><rect x="48" y="72" width="64" height="9" rx="2" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><rect x="60" y="72" width="9" height="9" rx="0" style="fill:#F2B134"/><rect x="80" y="72" width="9" height="9" rx="0" style="fill:#F2B134"/><rect x="100" y="72" width="9" height="9" rx="0" style="fill:#F2B134"/><rect x="48" y="72" width="64" height="9" rx="2" style="fill:none;stroke:var(--fg);stroke-width:3"/><circle cx="48" cy="76" r="6" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><ellipse cx="84" cy="24" rx="30" ry="17" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><circle cx="60" cy="46" r="3.5" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/><circle cx="53" cy="55" r="2.2" style="fill:var(--card);stroke:var(--fg);stroke-width:2"/><path d="M66 17 H102" style="fill:none;stroke:var(--accent);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M66 24 H96" style="fill:none;stroke:var(--accent);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M66 31 H90" style="fill:none;stroke:var(--accent);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Peaje mental</span></button>
+    <button class="tab" role="tab" id="t-casino" aria-controls="casino" aria-selected="false" data-tab="casino"><svg aria-label="Casino del Criterio: fichas y una carta con una respuesta verificada" role="img" width="24" height="24" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><g transform="rotate(12 76 42)"><rect x="52" y="10" width="46" height="64" rx="5" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><path d="M64 44 L73 54 L88 32" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/></g><circle cx="34" cy="86" r="24" style="fill:var(--accent);stroke:var(--fg);stroke-width:3"/><circle cx="34" cy="86" r="15.8" style="fill:none;stroke:var(--card);stroke-width:3" stroke-dasharray="6 5"/><circle cx="34" cy="86" r="6.720000000000001" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/><circle cx="62" cy="98" r="20" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><circle cx="62" cy="98" r="13.2" style="fill:none;stroke:var(--card);stroke-width:3" stroke-dasharray="6 5"/><circle cx="62" cy="98" r="5.6000000000000005" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/><circle cx="88" cy="82" r="20" style="fill:#D9573B;stroke:var(--fg);stroke-width:3"/><circle cx="88" cy="82" r="13.2" style="fill:none;stroke:var(--card);stroke-width:3" stroke-dasharray="6 5"/><circle cx="88" cy="82" r="5.6000000000000005" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/></svg><span>Casino del Criterio</span></button>
+    <button class="tab" role="tab" id="t-progreso" aria-controls="progreso" aria-selected="false" data-tab="progreso"><svg aria-label="Gym Cerebral: un cerebro con pesas" role="img" width="24" height="24" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><path d="M60 20 C42 10 22 26 28 44 C14 52 20 74 38 74 C46 86 74 86 82 74 C100 74 106 52 92 44 C98 26 78 10 60 20 Z" style="fill:var(--pet);stroke:var(--fg);stroke-width:3" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 22 V82" style="fill:none;stroke:var(--fg);stroke-width:2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 40 Q50 36 54 46 M80 40 Q70 36 66 46 M38 60 Q48 56 54 64 M82 60 Q72 56 66 64" style="fill:none;stroke:var(--fg);stroke-width:2.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="32" y="97" width="56" height="7" rx="2" style="fill:var(--fg)"/><rect x="20" y="90" width="12" height="21" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><rect x="88" y="90" width="12" height="21" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/></svg><span>Gym y Neurogotchi</span></button>
+  </div>
+
+  <!-- PEAJE MENTAL -->
+  <section class="panel" id="peaje" role="tabpanel" aria-labelledby="t-peaje">
+    <div class="hero"><div><h2>Primero piensas tú</h2><p class="muted">Extensión del navegador: antes de abrir la IA, te pide tres líneas con lo que ya piensas.</p></div><svg aria-label="Peaje mental: una barrera que pide pensar primero" role="img" width="110" height="110" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><rect x="8" y="106" width="104" height="4" rx="0" style="fill:var(--fg)"/><rect x="10" y="56" width="34" height="50" rx="3" style="fill:var(--accent);stroke:var(--fg);stroke-width:3"/><rect x="6" y="46" width="42" height="11" rx="2" style="fill:var(--fg);stroke:var(--fg);stroke-width:3"/><rect x="17" y="66" width="20" height="18" rx="2" style="fill:var(--soft);stroke:var(--fg);stroke-width:2"/><rect x="48" y="72" width="64" height="9" rx="2" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><rect x="60" y="72" width="9" height="9" rx="0" style="fill:#F2B134"/><rect x="80" y="72" width="9" height="9" rx="0" style="fill:#F2B134"/><rect x="100" y="72" width="9" height="9" rx="0" style="fill:#F2B134"/><rect x="48" y="72" width="64" height="9" rx="2" style="fill:none;stroke:var(--fg);stroke-width:3"/><circle cx="48" cy="76" r="6" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><ellipse cx="84" cy="24" rx="30" ry="17" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><circle cx="60" cy="46" r="3.5" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/><circle cx="53" cy="55" r="2.2" style="fill:var(--card);stroke:var(--fg);stroke-width:2"/><path d="M66 17 H102" style="fill:none;stroke:var(--accent);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M66 24 H96" style="fill:none;stroke:var(--accent);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M66 31 H90" style="fill:none;stroke:var(--accent);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="flow"><div class="st"><svg aria-label="Tres líneas escritas por ti" role="img" width="64" height="64" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><rect x="24" y="14" width="62" height="84" rx="5" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><path d="M36 34 H74" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 50 H74" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 66 H60" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><g transform="rotate(35 92 82)"><rect x="86" y="40" width="12" height="56" rx="2" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><polygon points="86,96 98,96 92,110" style="fill:var(--fg)"/></g></svg>Escribes tres líneas</div><span class="ar"><svg aria-label="Flecha" role="img" width="30" height="20" viewBox="0 0 80 40" xmlns="http://www.w3.org/2000/svg" style="flex:none"><path d="M6 20 H64 M48 6 L66 20 L48 34" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="st"><svg aria-label="Conversación con la IA" role="img" width="64" height="64" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><rect x="10" y="20" width="100" height="62" rx="14" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><polygon points="30,82 26,104 52,82" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><rect x="14" y="24" width="92" height="54" rx="0" style="fill:var(--card)"/><circle cx="40" cy="51" r="6" style="fill:var(--accent)"/><circle cx="60" cy="51" r="6" style="fill:var(--accent)"/><circle cx="80" cy="51" r="6" style="fill:var(--accent)"/></svg>Abres la IA y preguntas</div><span class="ar"><svg aria-label="Flecha" role="img" width="30" height="20" viewBox="0 0 80 40" xmlns="http://www.w3.org/2000/svg" style="flex:none"><path d="M6 20 H64 M48 6 L66 20 L48 34" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div class="st"><svg aria-label="Tu idea comparada con la de la IA" role="img" width="64" height="64" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><rect x="10" y="18" width="44" height="84" rx="5" style="fill:var(--soft);stroke:var(--fg);stroke-width:3"/><rect x="66" y="18" width="44" height="84" rx="5" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><path d="M18 34 H46" style="fill:none;stroke:var(--accent);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 H46" style="fill:none;stroke:var(--accent);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 66 H46" style="fill:none;stroke:var(--accent);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><path d="M74 34 H102" style="fill:none;stroke:var(--fg);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><path d="M74 50 H102" style="fill:none;stroke:var(--fg);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><path d="M74 66 H102" style="fill:none;stroke:var(--fg);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="88" r="14" style="fill:var(--accent);stroke:var(--fg);stroke-width:3"/><path d="M53 88 L58 94 L68 82" style="fill:none;stroke:var(--card);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/></svg>Compara tu idea con la suya</div></div>
+
+    <div class="card">
+      <span class="label">Tu pregunta en el chat de IA</span>
+      <div class="chatbox"><p>Explícame qué es la inflación y por qué sube.</p></div>
+    </div>
+
+    <div class="card" id="p-write">
+      <h3>Peaje mental</h3>
+      <label for="p-text">Escribe 3 líneas con lo que ya piensas sobre el tema (una por renglón).</label>
+      <textarea id="p-text" placeholder="Ej.: Creo que sube cuando hay más plata circulando.&#10;Los precios de las cosas aumentan.&#10;El banco central hace algo con las tasas."></textarea>
+      <div class="row">
+        <button class="btn" id="p-open" disabled>Abrir la IA</button>
+        <span class="muted" id="p-count" aria-live="polite">Líneas escritas: 0 de 3</span>
+      </div>
+    </div>
+
+    <div id="p-answer" hidden class="panel">
+      <div class="card">
+        <span class="label">Respuesta de la IA (simulada)</span>
+        <p id="p-ai"></p>
+      </div>
+      <div class="card">
+        <h3>Tu idea frente a la de la IA</h3>
+        <div class="cols">
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><span class="label">Lo que escribiste</span><div class="quote" id="p-yours"></div></div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><span class="label">Conceptos clave de la respuesta</span><div class="chips" id="p-chips"></div><p class="legend muted">Verde: ya lo tenías. Rojo: te faltaba.</p></div>
+        </div>
+        <div class="row"><div class="ring" id="p-ring"></div><p id="p-summary" style="font-weight:600;flex:1;min-width:200px"></p></div>
+        <p class="muted legend">En la demo la comparación busca palabras clave. En el producto, la IA compara las dos ideas.</p>
+        <div class="row"><button class="btn alt" id="p-reset">Probar de nuevo</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASINO -->
+  <section class="panel" id="casino" role="tabpanel" aria-labelledby="t-casino" hidden>
+    <div class="hero"><div><h2>¿Verdadera o falsa?</h2><p class="muted">La IA afirma algo. Apuestas fichas ficticias a si es verdad. Si detectas el error, ganas.</p></div><svg aria-label="Casino del Criterio: fichas y una carta con una respuesta verificada" role="img" width="110" height="110" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><g transform="rotate(12 76 42)"><rect x="52" y="10" width="46" height="64" rx="5" style="fill:var(--card);stroke:var(--fg);stroke-width:3"/><path d="M64 44 L73 54 L88 32" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/></g><circle cx="34" cy="86" r="24" style="fill:var(--accent);stroke:var(--fg);stroke-width:3"/><circle cx="34" cy="86" r="15.8" style="fill:none;stroke:var(--card);stroke-width:3" stroke-dasharray="6 5"/><circle cx="34" cy="86" r="6.720000000000001" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/><circle cx="62" cy="98" r="20" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><circle cx="62" cy="98" r="13.2" style="fill:none;stroke:var(--card);stroke-width:3" stroke-dasharray="6 5"/><circle cx="62" cy="98" r="5.6000000000000005" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/><circle cx="88" cy="82" r="20" style="fill:#D9573B;stroke:var(--fg);stroke-width:3"/><circle cx="88" cy="82" r="13.2" style="fill:none;stroke:var(--card);stroke-width:3" stroke-dasharray="6 5"/><circle cx="88" cy="82" r="5.6000000000000005" style="fill:var(--card);stroke:var(--fg);stroke-width:2.5"/></svg></div>
+    <div class="row">
+      <div class="card grow"><span class="label">Fichas</span><span class="stat" id="c-chips">100</span><div class="stack" id="c-stack" aria-hidden="true"></div></div>
+      <div class="card grow"><span class="label">Ronda</span><span class="stat" id="c-round">1 / 5</span></div>
+    </div>
+    <div class="card" id="c-play">
+      <span class="label">La IA dice</span>
+      <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span style="flex:none"><svg aria-label="La IA responde" role="img" width="56" height="56" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><rect x="22" y="34" width="76" height="58" rx="10" style="fill:var(--fg);stroke:var(--fg);stroke-width:3"/><rect x="32" y="46" width="56" height="24" rx="4" style="fill:var(--card)"/><circle cx="47" cy="58" r="6" style="fill:var(--accent)"/><circle cx="73" cy="58" r="6" style="fill:var(--accent)"/><path d="M50 80 H70" style="fill:none;stroke:var(--card);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 34 V18" style="fill:none;stroke:var(--fg);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="14" r="6" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><rect x="12" y="52" width="10" height="22" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><rect x="98" y="52" width="10" height="22" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/></svg></span><p id="c-claim" style="font-size:20px;font-weight:600;flex:1;min-width:0"></p></div>
+      <fieldset style="border:0;padding:0;margin:0">
+        <legend class="label" style="padding:0 0 6px">Cuánto apuestas</legend>
+        <div class="stakes" id="c-stakes"></div>
+      </fieldset>
+      <div class="row">
+        <button class="btn" id="c-true">Es verdadera</button>
+        <button class="btn alt" id="c-false">Es falsa</button>
+      </div>
+      <div id="c-result" class="result" hidden aria-live="polite"></div>
+      <div class="row"><button class="btn" id="c-next" hidden>Siguiente</button></div>
+    </div>
+    <div class="card" id="c-end" hidden>
+      <h3 id="c-end-title"></h3>
+      <p id="c-end-text"></p>
+      <div class="row"><button class="btn" id="c-restart">Jugar de nuevo</button></div>
+    </div>
+  </section>
+
+  <!-- PROGRESO -->
+  <section class="panel" id="progreso" role="tabpanel" aria-labelledby="t-progreso" hidden>
+    <div class="hero"><div><h2>Un hábito que se ve</h2><p class="muted">Rutinas de pensamiento en el Gym Cerebral y una mascota que crece con lo que escribes tú.</p></div><svg aria-label="Gym Cerebral: un cerebro con pesas" role="img" width="110" height="110" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><path d="M60 20 C42 10 22 26 28 44 C14 52 20 74 38 74 C46 86 74 86 82 74 C100 74 106 52 92 44 C98 26 78 10 60 20 Z" style="fill:var(--pet);stroke:var(--fg);stroke-width:3" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 22 V82" style="fill:none;stroke:var(--fg);stroke-width:2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 40 Q50 36 54 46 M80 40 Q70 36 66 46 M38 60 Q48 56 54 64 M82 60 Q72 56 66 64" style="fill:none;stroke:var(--fg);stroke-width:2.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="32" y="97" width="56" height="7" rx="2" style="fill:var(--fg)"/><rect x="20" y="90" width="12" height="21" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/><rect x="88" y="90" width="12" height="21" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:3"/></svg></div>
+
+    <div class="card">
+      <h3>Gym Cerebral · rutina de hoy</h3>
+      <div id="g-list"></div>
+      <div class="bar" role="progressbar" aria-label="Rutina de hoy" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" id="g-bar"><i style="width:0%"></i></div>
+      <p class="muted legend" id="g-text">0 de 3 ejercicios hechos</p>
+    </div>
+
+    <div class="card">
+      <h3>Neurogotchi</h3>
+      <div class="pet">
+        <div style="width:170px;height:170px;display:flex;align-items:flex-end;justify-content:center;flex:none"><div id="pet-box" style="transform-origin:bottom center"><span id="pet-ok"><svg aria-label="Neurogotchi sano" role="img" width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><ellipse cx="60" cy="70" rx="42" ry="38" style="fill:var(--pet);stroke:var(--fg);stroke-width:3.5"/><ellipse cx="44" cy="108" rx="11" ry="6" style="fill:var(--fg)"/><ellipse cx="76" cy="108" rx="11" ry="6" style="fill:var(--fg)"/><path d="M60 32 Q58 18 44 14" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 32 Q64 18 80 16" style="fill:none;stroke:var(--accent);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44" cy="14" r="5" style="fill:var(--accent);stroke:var(--fg);stroke-width:2.5"/><circle cx="80" cy="16" r="5" style="fill:var(--accent);stroke:var(--fg);stroke-width:2.5"/><circle cx="46" cy="66" r="6.5" style="fill:var(--fg)"/><circle cx="74" cy="66" r="6.5" style="fill:var(--fg)"/><circle cx="48" cy="64" r="2" style="fill:var(--card)"/><circle cx="76" cy="64" r="2" style="fill:var(--card)"/><path d="M46 82 Q60 96 74 82" style="fill:none;stroke:var(--fg);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="80" r="6" style="fill:#D9573B" opacity="0.35"/><circle cx="86" cy="80" r="6" style="fill:#D9573B" opacity="0.35"/></svg></span><span id="pet-sick" hidden><svg aria-label="Neurogotchi enfermo" role="img" width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><ellipse cx="60" cy="70" rx="42" ry="38" style="fill:var(--pet-sick);stroke:var(--fg);stroke-width:3.5"/><ellipse cx="44" cy="108" rx="11" ry="6" style="fill:var(--fg)"/><ellipse cx="76" cy="108" rx="11" ry="6" style="fill:var(--fg)"/><path d="M60 32 Q58 18 44 22" style="fill:none;stroke:var(--pet-sick);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 32 Q64 22 72 28" style="fill:none;stroke:var(--pet-sick);stroke-width:5" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 60 l10 10 M50 60 l-10 10 M70 60 l10 10 M80 60 l-10 10" style="fill:none;stroke:var(--fg);stroke-width:3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 92 Q60 80 74 92" style="fill:none;stroke:var(--fg);stroke-width:4" stroke-linecap="round" stroke-linejoin="round"/><g transform="rotate(-25 90 84)"><rect x="80" y="78" width="22" height="10" rx="3" style="fill:#F2B134;stroke:var(--fg);stroke-width:2"/></g></svg></span></div></div>
+        <div class="grow" style="display:flex;flex-direction:column;gap:6px">
+          <p><b id="pet-state">Sano</b> · Nivel <span id="pet-level">1</span></p>
+          <div class="bar" role="progressbar" aria-label="Progreso al siguiente nivel" aria-valuemin="0" aria-valuemax="40" aria-valuenow="0" id="pet-bar"><i style="width:0%"></i></div>
+          <p class="muted legend" id="pet-msg">Aliméntalo con una explicación escrita por ti.</p>
+        </div>
+      </div>
+      <label for="pet-text">Explica con tus palabras un tema que viste hoy (mínimo 60 letras).</label>
+      <textarea id="pet-text" style="min-height:96px" placeholder="Ej.: La inflación es cuando los precios suben en general y la plata alcanza para menos cosas..."></textarea>
+      <div class="row">
+        <button class="btn" id="pet-feed">Alimentar</button>
+        <span class="muted legend" id="pet-count" aria-live="polite">0 letras</span>
+      </div>
+      <p class="muted legend">Prueba pegar un texto largo en el cuadro: el Neurogotchi se enferma y solo se cura si escribes tú.</p>
+    </div>
+    <div class="card"><h3>Tu semana</h3><div class="week" role="img" aria-label="Progreso de la semana, datos de ejemplo"><div style="height:30%"></div><div style="height:45%"></div><div style="height:20%"></div><div style="height:60%"></div><div style="height:50%"></div><div style="height:72%"></div><div class="today" id="wk-today" style="height:10%"></div></div><div class="weeklab"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><p class="muted legend">Puntos por día (datos de ejemplo). La barra verde es hoy.</p></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  var norm=function(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')};
+
+  /* ---------- Pestañas ---------- */
+  var ids=['peaje','casino','progreso'];
+  function show(id){
+    if(ids.indexOf(id)<0) id='peaje';
+    ids.forEach(function(k){
+      $('#'+k).hidden = k!==id;
+      $('#t-'+k).setAttribute('aria-selected', String(k===id));
+    });
+  }
+  document.querySelectorAll('.tab').forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-tab');
+      try{ history.replaceState(null,'','#'+id); }catch(e){ location.hash=id; }
+      show(id);
+    });
+  });
+  window.addEventListener('hashchange',function(){show(location.hash.slice(1))});
+  show(location.hash.slice(1));
+
+  /* ---------- Peaje mental ---------- */
+  var AI_TEXT='La inflación es el aumento sostenido de los precios en una economía, lo que reduce el poder adquisitivo del dinero. Suele subir cuando la demanda crece más rápido que la oferta, cuando aumentan los costos de producción o cuando hay mucho dinero en circulación. Los bancos centrales suben las tasas de interés para enfriar la demanda y frenar los precios.';
+  var KEYS=[
+    {n:'precios',m:['precio']},
+    {n:'poder adquisitivo',m:['poder adquisitivo','adquisitivo','alcanza']},
+    {n:'demanda',m:['demanda']},
+    {n:'oferta',m:['oferta']},
+    {n:'costos',m:['costo']},
+    {n:'tasas de interés',m:['tasa','interes']},
+    {n:'banco central',m:['banco']}
+  ];
+  var pText=$('#p-text'), pOpen=$('#p-open');
+  function lines(){return pText.value.split('\n').map(function(l){return l.trim()}).filter(function(l){return l.length>=8})}
+  pText.addEventListener('input',function(){
+    var n=Math.min(lines().length,3);
+    $('#p-count').textContent='Líneas escritas: '+n+' de 3';
+    pOpen.disabled = n<3;
+  });
+  pOpen.addEventListener('click',function(){
+    var mine=lines(), all=norm(mine.join(' '));
+    $('#p-ai').textContent=AI_TEXT;
+    $('#p-yours').textContent=mine.join('\n');
+    var chips=$('#p-chips'); chips.textContent='';
+    var got=0;
+    KEYS.forEach(function(k){
+      var has=k.m.some(function(w){return all.indexOf(w)>=0});
+      if(has) got++;
+      var c=document.createElement('span');
+      c.className='chip '+(has?'ok':'miss');
+      c.textContent=(has?'Ya lo tenías: ':'Te faltaba: ')+k.n;
+      chips.appendChild(c);
+    });
+    $('#p-summary').textContent='Ya tenías '+got+' de '+KEYS.length+' conceptos. Antes de copiar nada, intenta explicar con tus palabras los que te faltaban.';
+    var pct=Math.round(got/KEYS.length*100), cc=2*Math.PI*46;
+    $('#p-ring').innerHTML='<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Cobertura '+pct+' %"><circle cx="60" cy="60" r="46" fill="none" style="stroke:var(--soft)" stroke-width="14"/><circle cx="60" cy="60" r="46" fill="none" style="stroke:var(--accent)" stroke-width="14" stroke-dasharray="'+(cc*pct/100)+' '+cc+'" transform="rotate(-90 60 60)"/></svg><b>'+pct+' %</b>';
+    $('#p-write').hidden=true; $('#p-answer').hidden=false;
+  });
+  $('#p-reset').addEventListener('click',function(){
+    pText.value=''; pOpen.disabled=true; $('#p-count').textContent='Líneas escritas: 0 de 3';
+    $('#p-write').hidden=false; $('#p-answer').hidden=true; pText.focus();
+  });
+
+  /* ---------- Casino del Criterio ---------- */
+  var CLAIMS=[
+    {t:'La Gran Muralla China se ve a simple vista desde la Luna.',v:false,e:'Es un mito. Desde la Luna no se distingue a simple vista.'},
+    {t:'Colombia tiene costa en el mar Caribe y en el océano Pacífico.',v:true,e:'Es verdadera: tiene costas en los dos.'},
+    {t:'Los humanos usamos solo el 10 % del cerebro.',v:false,e:'Es un mito. Usamos todo el cerebro, aunque no todas las zonas a la vez.'},
+    {t:'En la cima de una montaña muy alta el agua hierve a menos de 100 °C.',v:true,e:'Es verdadera: con menos presión atmosférica, el agua hierve a menor temperatura.'},
+    {t:'Una IA generativa siempre cita fuentes reales que puedes verificar.',v:false,e:'Es falsa. A veces inventa citas o referencias que no existen, por eso hay que verificar.'}
+  ];
+  var G;
+  var OKI='<svg aria-label="Acierto" role="img" width="40" height="40" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><circle cx="60" cy="60" r="44" style="fill:var(--accent);stroke:var(--fg);stroke-width:3"/><path d="M38 60 L54 76 L84 44" style="fill:none;stroke:var(--card);stroke-width:9" stroke-linecap="round" stroke-linejoin="round"/></svg>', NOI='<svg aria-label="Error" role="img" width="40" height="40" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" style="flex:none"><circle cx="60" cy="60" r="44" style="fill:#D9573B;stroke:var(--fg);stroke-width:3"/><path d="M42 42 L78 78 M78 42 L42 78" style="fill:none;stroke:var(--card);stroke-width:9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function setChips(){
+    $('#c-chips').textContent=G.chips;
+    var s=$('#c-stack'); s.textContent='';
+    var n=Math.max(0,Math.min(30,Math.round(G.chips/10)));
+    for(var i=0;i<n;i++){
+      var e=document.createElementNS('http://www.w3.org/2000/svg','svg'); e.setAttribute('width','22'); e.setAttribute('height','22'); e.setAttribute('viewBox','0 0 24 24');
+      e.innerHTML='<circle cx="12" cy="12" r="10" fill="'+(i%3==0?'#F2B134':i%3==1?'#0F7B5F':'#D9573B')+'" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="3 2.5"/>';
+      s.appendChild(e);
+    }
+  }
+  function newGame(){G={chips:100,round:0,stake:10,answered:false,hits:0}; renderRound();}
+  function renderRound(){
+    $('#c-end').hidden=true; $('#c-play').hidden=false;
+    $('#c-result').hidden=true; $('#c-next').hidden=true; G.answered=false;
+    $('#c-claim').textContent=CLAIMS[G.round].t;
+    setChips();
+    $('#c-round').textContent=(G.round+1)+' / '+CLAIMS.length;
+    var box=$('#c-stakes'); box.textContent='';
+    if(G.stake>G.chips) G.stake=10;
+    [10,20,50].forEach(function(s){
+      var l=document.createElement('label'), i=document.createElement('input'), sp=document.createElement('span');
+      i.type='radio'; i.name='stake'; i.value=s; i.disabled=s>G.chips; i.checked=(s===G.stake);
+      i.addEventListener('change',function(){G.stake=s});
+      sp.textContent=s+' fichas'; l.appendChild(i); l.appendChild(sp); box.appendChild(l);
+    });
+    $('#c-true').disabled=false; $('#c-false').disabled=false;
+  }
+  function answer(sayTrue){
+    if(G.answered) return; G.answered=true;
+    var c=CLAIMS[G.round], ok=(sayTrue===c.v), r=$('#c-result');
+    G.chips += ok ? G.stake : -G.stake; if(ok) G.hits++;
+    r.className='result '+(ok?'good':'bad'); r.hidden=false;
+    r.innerHTML=(ok?OKI:NOI)+'<span style="flex:1;min-width:0"></span>'; r.lastChild.textContent=(ok?'Acertaste: ganas '+G.stake+' fichas. ':'Fallaste: pierdes '+G.stake+' fichas. ')+c.e;
+    setChips();
+    $('#c-true').disabled=true; $('#c-false').disabled=true;
+    document.querySelectorAll('#c-stakes input').forEach(function(i){i.disabled=true});
+    var next=$('#c-next'); next.hidden=false;
+    next.textContent=(G.round===CLAIMS.length-1)?'Ver resultado':'Siguiente';
+    next.focus();
+  }
+  $('#c-true').addEventListener('click',function(){answer(true)});
+  $('#c-false').addEventListener('click',function(){answer(false)});
+  $('#c-next').addEventListener('click',function(){
+    G.round++;
+    if(G.round>=CLAIMS.length || G.chips<10){ endGame(); } else { renderRound(); }
+  });
+  function endGame(){
+    $('#c-play').hidden=true; $('#c-end').hidden=false;
+    $('#c-end-title').textContent='Detectaste '+G.hits+' de '+(G.round)+' afirmaciones';
+    $('#c-end-text').textContent='Terminas con '+G.chips+' fichas. Lo importante es la costumbre: verificar antes de creerle a la IA.';
+  }
+  $('#c-restart').addEventListener('click',newGame);
+  newGame();
+
+  /* ---------- Gym Cerebral y Neurogotchi ---------- */
+  var points=0, sick=false, pasted=false;
+  var EX=['Resume en dos líneas lo que viste hoy en clase.','Encuentra un error en un texto escrito por una IA.','Explica un tema como si se lo contaras a alguien de 12 años.'];
+  var gl=$('#g-list');
+  EX.forEach(function(t,i){
+    var d=document.createElement('label'); d.className='check'; d.setAttribute('for','ex'+i);
+    var c=document.createElement('input'); c.type='checkbox'; c.id='ex'+i;
+    var s=document.createElement('span'); s.textContent=t;
+    c.addEventListener('change',function(){ points+= c.checked?10:-10; renderGym(); renderPet(); });
+    d.appendChild(c); d.appendChild(s); gl.appendChild(d);
+  });
+  function renderGym(){
+    var n=gl.querySelectorAll('input:checked').length;
+    $('#g-bar i').style.width=(n/3*100)+'%'; $('#g-bar').setAttribute('aria-valuenow',n);
+    $('#g-text').textContent=n+' de 3 ejercicios hechos';
+  }
+  function renderPet(){
+    var lvl=Math.min(1+Math.floor(points/40),5), into=points>=200?40:points%40;
+    $('#pet-level').textContent=lvl;
+    $('#pet-bar i').style.width=(into/40*100)+'%'; $('#pet-bar').setAttribute('aria-valuenow',into);
+    $('#pet-box').style.transform='scale('+(0.8+lvl*0.1)+')';
+    $('#pet-ok').hidden=sick; $('#pet-sick').hidden=!sick;
+    $('#pet-state').textContent=sick?'Enfermo':'Sano';
+    $('#wk-today').style.height=Math.min(100,10+points*0.9)+'%';
+  }
+  var pt=$('#pet-text');
+  pt.addEventListener('input',function(){
+    $('#pet-count').textContent=pt.value.trim().length+' letras';
+    if(pt.value==='') pasted=false;
+  });
+  pt.addEventListener('paste',function(e){
+    var txt=(e.clipboardData&&e.clipboardData.getData('text'))||'';
+    if(txt.length>40){
+      pasted=true; sick=true; renderPet();
+      $('#pet-msg').textContent='Pegaste un texto largo y el Neurogotchi se enfermó. Borra el cuadro y escribe con tus palabras.';
+    }
+  });
+  $('#pet-feed').addEventListener('click',function(){
+    var len=pt.value.trim().length, msg=$('#pet-msg');
+    if(pasted){ sick=true; renderPet(); msg.textContent='Ese texto fue pegado. Borra el cuadro y escribe tú para curarlo.'; return; }
+    if(len<60){ msg.textContent='Escribe un poco más: faltan '+(60-len)+' letras.'; return; }
+    sick=false; points+=20; pt.value=''; $('#pet-count').textContent='0 letras';
+    msg.textContent='Se lo comió todo. Escribir tú lo hace crecer.'; renderPet();
+  });
+  renderGym(); renderPet();
+})();
+</script>
+
+</body></html>
